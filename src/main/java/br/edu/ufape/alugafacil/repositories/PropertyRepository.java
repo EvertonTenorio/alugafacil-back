@@ -27,9 +27,6 @@ public interface PropertyRepository extends
 	@Query("UPDATE Property p SET p.status = 'PAUSED' WHERE p.user.id = :userId AND p.status = 'ACTIVE'")
 	void pauseActivePropertiesByUserId(@Param("userId") UUID userId);
 
-	List<Property> findTop10ByStatusOrderByViewCountDesc(PropertyStatus status);
-
-
 	@Query("SELECT p FROM Property p WHERE p.user.agency.user.id = :adminId")
     List<Property> findByAgencyAdminId(@Param("adminId") UUID adminId);
 
