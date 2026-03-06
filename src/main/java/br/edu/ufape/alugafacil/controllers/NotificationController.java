@@ -41,6 +41,15 @@ public class NotificationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Page<NotificationResponse>> listByUser(
+            @PathVariable UUID userId,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
+    ) {
+        Page<NotificationResponse> response = notificationService.getNotificationsByUserId(userId, pageable);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/message")
     public ResponseEntity<MessageNotificationResponse> createMessageNotification(@Valid @RequestBody MessageNotificationRequest request) {
         MessageNotificationResponse response = notificationService.createMessageNotification(request);

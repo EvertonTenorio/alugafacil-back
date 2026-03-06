@@ -96,11 +96,12 @@ public class PropertyService implements IPropertyService {
         } else {
             property.setStatus(PropertyStatus.ACTIVE);
         }
-
+        
         Property savedProperty = propertyRepository.save(property);
         
-        notifyInterestedUsers(savedProperty);
         
+        notifyInterestedUsers(savedProperty);
+       
         return propertyMapper.toResponse(savedProperty);
     }
 
@@ -120,6 +121,7 @@ public class PropertyService implements IPropertyService {
      */
     @Async 
 protected void notifyInterestedUsers(Property property) {
+    
     // 1. Extração segura dos dados da entidade Property
     Integer garageCount = (property.getGarage() != null && property.getGarage()) ? 1 : 0;
     Double lat = (property.getGeolocation() != null) ? property.getGeolocation().getLatitude() : null;
