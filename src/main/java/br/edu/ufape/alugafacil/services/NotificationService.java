@@ -61,6 +61,13 @@ public class NotificationService implements INotificationService {
     }
 
     @Override
+    public Page<NotificationResponse> getNotificationsByUserId(UUID userId, Pageable pageable) {
+        
+        return notificationRepository.findByUserId(userId, pageable)
+                .map(notificationMapper::toResponse); 
+    }
+
+    @Override
     @Transactional
     public MessageNotificationResponse createMessageNotification(MessageNotificationRequest request) {
         // 2. VALIDAÇÃO: Verifica se a conversa existe (se o ID foi passado)
