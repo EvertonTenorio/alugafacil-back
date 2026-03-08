@@ -20,7 +20,7 @@ public interface INotificationService {
     
     void notifyListingMatch(UUID userId, UUID propertyId, String alertName);
     void notifyNewMessage(UUID recipientId, UUID conversationId, String senderName);
-    
+    Page<NotificationResponse> getNotificationsByUserId(UUID userId, Pageable pageable);
 
     Page<NotificationResponse> getAllNotifications(Pageable pageable);
     NotificationResponse getNotificationById(UUID id);

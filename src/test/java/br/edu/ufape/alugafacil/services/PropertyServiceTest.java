@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -27,6 +28,7 @@ import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
 import br.edu.ufape.alugafacil.mappers.PropertyMapper;
 import br.edu.ufape.alugafacil.models.Property;
 import br.edu.ufape.alugafacil.repositories.PropertyRepository;
+import br.edu.ufape.alugafacil.repositories.PropertyViewRepository;
 import br.edu.ufape.alugafacil.repositories.SubscriptionRepository;
 import br.edu.ufape.alugafacil.repositories.UserRepository;
 import br.edu.ufape.alugafacil.repositories.UserSearchPreferenceRepository;
@@ -55,6 +57,9 @@ class PropertyServiceTest {
     
     @Mock
     private PropertyRepository propertyRepository;
+
+    @Mock
+    private PropertyViewRepository propertyViewRepository;
 
     @Mock
     private UserRepository userRepository;
@@ -86,7 +91,8 @@ class PropertyServiceTest {
         PropertyResponse responseEsperado = criarResponseFake(id);
 
         when(propertyRepository.findById(id)).thenReturn(Optional.of(propertyEntity));
-        when(propertyMapper.toResponse(propertyEntity)).thenReturn(responseEsperado);
+        when(propertyViewRepository.countByPropertyPropertyId(id)).thenReturn(0L);
+        when(propertyMapper.toResponse(propertyEntity, 0L)).thenReturn(responseEsperado);
 
         PropertyResponse resultado = propertyService.getPropertyById(id);
 
@@ -107,7 +113,7 @@ class PropertyServiceTest {
         });
 
         assertEquals("Imóvel não encontrado", exception.getMessage());
-        verify(propertyMapper, never()).toResponse(any());
+        verify(propertyMapper, never()).toResponse(any(Property.class), anyLong());
     }
 
     @Test
@@ -145,7 +151,7 @@ class PropertyServiceTest {
         when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
         when(propertyMapper.toEntity(request)).thenReturn(propertyEntity);
         when(propertyRepository.save(propertyEntity)).thenReturn(propertyEntity);
-        when(propertyMapper.toResponse(propertyEntity)).thenReturn(responseEsperado);
+        when(propertyMapper.toResponse(propertyEntity, 0L)).thenReturn(responseEsperado);
         
         lenient().when(preferenceRepository.findMatchingPreferences(
             any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
@@ -248,7 +254,8 @@ class PropertyServiceTest {
         PropertyResponse responseMock = criarResponseFake(property.getPropertyId());
 
         when(propertyRepository.findAll(any(Predicate.class), eq(pageable))).thenReturn(pageResult);
-        when(propertyMapper.toResponse(property)).thenReturn(responseMock);
+        when(propertyViewRepository.countByPropertyIdIn(any())).thenReturn(Collections.emptyList());
+        when(propertyMapper.toResponse(property, 0L)).thenReturn(responseMock);
 
         Page<PropertyResponse> result = propertyService.getAllProperties(filters, pageable);
 

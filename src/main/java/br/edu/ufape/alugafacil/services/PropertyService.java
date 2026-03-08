@@ -2,6 +2,7 @@ package br.edu.ufape.alugafacil.services;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,10 +32,12 @@ import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
 import br.edu.ufape.alugafacil.mappers.PropertyMapper;
 import br.edu.ufape.alugafacil.models.Plan;
 import br.edu.ufape.alugafacil.models.Property;
+import br.edu.ufape.alugafacil.models.PropertyView;
 import br.edu.ufape.alugafacil.models.QProperty;
 import br.edu.ufape.alugafacil.models.User;
 import br.edu.ufape.alugafacil.models.UserSearchPreference;
 import br.edu.ufape.alugafacil.repositories.PropertyRepository;
+import br.edu.ufape.alugafacil.repositories.PropertyViewRepository;
 import br.edu.ufape.alugafacil.repositories.SubscriptionRepository;
 import br.edu.ufape.alugafacil.repositories.UserRepository;
 import br.edu.ufape.alugafacil.repositories.UserSearchPreferenceRepository;
@@ -51,6 +54,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PropertyService implements IPropertyService {
     
     private final PropertyRepository propertyRepository;
+    private final PropertyViewRepository propertyViewRepository;
     private final UserRepository userRepository;
     private final PropertyMapper propertyMapper;
     private final IFileStorageService fileStorageService;
@@ -69,6 +73,19 @@ public class PropertyService implements IPropertyService {
                     freePlan.setIsPriority(false);
                     return freePlan;
                 });
+    }
+
+    private long getViewCount(UUID propertyId) {
+        return propertyViewRepository.countByPropertyPropertyId(propertyId);
+    }
+
+    private Map<UUID, Long> getViewCountMap(List<UUID> propertyIds) {
+        if (propertyIds == null || propertyIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = propertyViewRepository.countByPropertyIdIn(propertyIds);
+        return rows.stream()
+                .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
     }
     
     @Override
@@ -96,21 +113,25 @@ public class PropertyService implements IPropertyService {
         } else {
             property.setStatus(PropertyStatus.ACTIVE);
         }
-
+        
         Property savedProperty = propertyRepository.save(property);
         
-        notifyInterestedUsers(savedProperty);
         
-        return propertyMapper.toResponse(savedProperty);
+
+        notifyInterestedUsers(savedProperty);
+       
+
+        return propertyMapper.toResponse(savedProperty, 0L);
+
     }
 
     @Override
     public List<PropertyResponse> getPropertiesByAgencyAdminId(UUID adminId) {
         List<Property> properties = propertyRepository.findByAgencyAdminId(adminId);
-        
-        
+        List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
+        Map<UUID, Long> viewCounts = getViewCountMap(ids);
         return properties.stream()
-                .map(propertyMapper::toResponse) 
+                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
                 .toList();
     }
 
@@ -120,6 +141,7 @@ public class PropertyService implements IPropertyService {
      */
     @Async 
 protected void notifyInterestedUsers(Property property) {
+    
     // 1. Extração segura dos dados da entidade Property
     Integer garageCount = (property.getGarage() != null && property.getGarage()) ? 1 : 0;
     Double lat = (property.getGeolocation() != null) ? property.getGeolocation().getLatitude() : null;
@@ -163,7 +185,7 @@ protected void notifyInterestedUsers(Property property) {
     public PropertyResponse getPropertyById(UUID id) {
         Property property = propertyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Imóvel não encontrado"));
-        return propertyMapper.toResponse(property);
+        return propertyMapper.toResponse(property, getViewCount(id));
     }
 
     @Override
@@ -243,13 +265,19 @@ protected void notifyInterestedUsers(Property property) {
         
         
         Page<Property> pageResult = propertyRepository.findAll((Predicate) builder, pageable);
-        return pageResult.map(propertyMapper::toResponse);
+        List<Property> content = pageResult.getContent();
+        List<UUID> ids = content.stream().map(Property::getPropertyId).toList();
+        Map<UUID, Long> viewCounts = getViewCountMap(ids);
+        return pageResult.map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)));
     }
     
     @Override
     public List<PropertyResponse> getPropertiesByUserId(UUID userId) {
-        return propertyRepository.findByUserUserId(userId).stream()
-                .map(propertyMapper::toResponse)
+        List<Property> properties = propertyRepository.findByUserUserId(userId);
+        List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
+        Map<UUID, Long> viewCounts = getViewCountMap(ids);
+        return properties.stream()
+                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
                 .collect(Collectors.toList());
     }
 
@@ -286,7 +314,8 @@ protected void notifyInterestedUsers(Property property) {
         propertyMapper.updateEntityFromDto(request, property);
         property.setIsPriority(plan.getIsPriority());
 
-        return propertyMapper.toResponse(propertyRepository.save(property));
+        Property saved = propertyRepository.save(property);
+        return propertyMapper.toResponse(saved, getViewCount(saved.getPropertyId()));
     }
 
     @Override
@@ -329,7 +358,8 @@ protected void notifyInterestedUsers(Property property) {
             property.getPhotoUrls().add(photoUrl);
         }
         
-        return propertyMapper.toResponse(propertyRepository.save(property));
+        Property saved = propertyRepository.save(property);
+        return propertyMapper.toResponse(saved, getViewCount(saved.getPropertyId()));
     }
 
 	@Override
@@ -349,19 +379,46 @@ protected void notifyInterestedUsers(Property property) {
 	    propertyRepository.save(property);
 	}
 
+    @Override
     @Transactional
     public void incrementViewCount(UUID propertyId) {
-    
         Property property = propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new RuntimeException("Não encontrado"));
-    
-        property.setViewCount(property.getViewCount() + 1);
+                .orElseThrow(() -> new RuntimeException("Imóvel não encontrado"));
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new RuntimeException("Usuário não autenticado. O registro de visualização requer login.");
+        }
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        if (propertyViewRepository.existsByUserUserIdAndPropertyPropertyId(user.getUserId(), propertyId)) {
+            return;
+        }
+        PropertyView view = new PropertyView();
+        view.setUser(user);
+        view.setProperty(property);
+        propertyViewRepository.save(view);
     }
 
 	@Override
 	public List<PropertyResponse> getTop10ByViewCount() {
-		return propertyRepository.findTop10ByStatusOrderByViewCountDesc(PropertyStatus.ACTIVE).stream()
-				.map(propertyMapper::toResponse)
+		List<Object[]> topIdsAndCounts = propertyViewRepository.findTopPropertyIdsByViewCount(
+				PropertyStatus.ACTIVE, PageRequest.of(0, 10));
+		if (topIdsAndCounts.isEmpty()) {
+			return List.of();
+		}
+		List<UUID> ids = topIdsAndCounts.stream()
+				.map(row -> (UUID) row[0])
+				.toList();
+		List<Property> properties = propertyRepository.findAllById(ids);
+		Map<UUID, Long> viewCounts = topIdsAndCounts.stream()
+				.collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+		return ids.stream()
+				.map(id -> properties.stream().filter(p -> p.getPropertyId().equals(id)).findFirst().orElse(null))
+				.filter(p -> p != null)
+				.map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
 				.collect(Collectors.toList());
 	}
 
@@ -369,8 +426,10 @@ protected void notifyInterestedUsers(Property property) {
 	public List<PropertyResponse> getRecentProperties(int limit) {
 		Pageable pageable = PageRequest.of(0, limit);
 		List<Property> properties = propertyRepository.findRecentProperties(PropertyStatus.ACTIVE, pageable);
+		List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
+		Map<UUID, Long> viewCounts = getViewCountMap(ids);
 		return properties.stream()
-				.map(propertyMapper::toResponse)
+				.map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
 				.collect(Collectors.toList());
 	}
 }

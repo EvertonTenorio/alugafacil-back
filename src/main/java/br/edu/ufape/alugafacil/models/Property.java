@@ -29,6 +29,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+
 @Entity
 @Data
 @EntityListeners(AuditingEntityListener.class)
@@ -113,7 +114,4 @@ public class Property {
     
     @Column(name = "moderation_reason", columnDefinition = "TEXT", nullable = true)
     private String moderationReason;
-
-    @Column(name = "view_count", nullable = false, columnDefinition = "bigint default 0")
-    private Long viewCount = 0L;
 }
