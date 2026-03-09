@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -147,9 +148,11 @@ public class PropertyController {
 	
 	@PostMapping("/simple")
 	public ResponseEntity<SimplePropertyResponse> createSimpleProperty(
-			@Valid @RequestBody SimplePropertyRequest request) {
-		SimplePropertyResponse response = propertyService.createSimpleProperty(request);
-		return ResponseEntity.status(HttpStatus.CREATED).body(response);
+			@Valid @RequestPart SimplePropertyRequest request,
+			@RequestPart(value = "files", required = false) List<MultipartFile> photos) {
+		List<MultipartFile> filesToUpload = (photos != null) ? photos : List.of();
+		SimplePropertyResponse created = propertyService.createSimpleProperty(request, filesToUpload);
+		return ResponseEntity.status(HttpStatus.CREATED).body(created);
 	}
 
 	@GetMapping("/simple/{id}")

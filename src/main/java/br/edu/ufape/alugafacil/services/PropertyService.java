@@ -459,8 +459,16 @@ protected void notifyInterestedUsers(Property property) {
 
     @Override
 	@Transactional
-	public SimplePropertyResponse createSimpleProperty(SimplePropertyRequest request) {
+	public SimplePropertyResponse createSimpleProperty(SimplePropertyRequest request, List<MultipartFile> photos) {
 		SimpleProperty simpleProperty = simplePropertyMapper.toEntity(request);
+		if (photos != null && !photos.isEmpty()) {
+			List<String> photoUrls = new ArrayList<>();
+			for (MultipartFile file : photos) {
+				String url = fileStorageService.uploadFile(file);
+				photoUrls.add(url);
+			}
+			simpleProperty.setPhotoUrls(photoUrls);
+		}
 		SimpleProperty saved = simplePropertyRepository.save(simpleProperty);
 		return simplePropertyMapper.toResponse(saved);
 	}

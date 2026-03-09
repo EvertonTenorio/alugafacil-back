@@ -30,7 +30,7 @@ public interface IPropertyService {
     List<PropertyResponse> getRecentProperties(int limit);
     List<PropertyResponse> getPropertiesByAgencyAdminId(UUID adminId);
     List<SimplePropertyResponse> getAllSimpleProperties();
-    SimplePropertyResponse createSimpleProperty(SimplePropertyRequest request);
+    SimplePropertyResponse createSimpleProperty(SimplePropertyRequest request, List<MultipartFile> photos);
     SimplePropertyResponse updateSimpleProperty(UUID id, SimplePropertyRequest request);
     void deleteSimpleProperty(UUID id);
     SimplePropertyResponse getSimplePropertyById(UUID id);
