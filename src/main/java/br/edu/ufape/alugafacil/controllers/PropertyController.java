@@ -28,13 +28,10 @@ import br.edu.ufape.alugafacil.dtos.property.PropertyFilterRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
 import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
-<<<<<<< HEAD
 import br.edu.ufape.alugafacil.dtos.property.CombinedPropertiesResponse;
 import br.edu.ufape.alugafacil.dtos.simpleProperty.SimplePropertyRequest;
 import br.edu.ufape.alugafacil.dtos.simpleProperty.SimplePropertyResponse;
-=======
 import br.edu.ufape.alugafacil.enums.PropertyStatus;
->>>>>>> 8b5618387820a780ab7fa697e951f47dc5def7a6
 import br.edu.ufape.alugafacil.repositories.FavoriteRepository;
 import br.edu.ufape.alugafacil.services.interfaces.IPropertyService;
 import jakarta.validation.Valid;
@@ -137,7 +134,6 @@ public class PropertyController {
 		List<PropertyResponse> response = propertyService.getRecentProperties(limit);
 		return ResponseEntity.ok(response);
 	}
-<<<<<<< HEAD
 
 	@GetMapping("/agency/{userId}")
     public ResponseEntity<List<PropertyResponse>> listByAgency(@PathVariable UUID userId) {
@@ -179,7 +175,7 @@ public class PropertyController {
 	public ResponseEntity<Void> deleteSimpleProperty(@PathVariable UUID id) {
 		propertyService.deleteSimpleProperty(id);
 		return ResponseEntity.noContent().build();
-=======
+	}
 	
 	@GetMapping("/user/{userId}")
 	public ResponseEntity<Page<PropertyResponse>> listByUser(
@@ -188,7 +184,6 @@ public class PropertyController {
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
     ) {
 		return ResponseEntity.ok(propertyService.getPropertiesByUserId(userId, status, pageable));
->>>>>>> 8b5618387820a780ab7fa697e951f47dc5def7a6
 	}
 }
 
