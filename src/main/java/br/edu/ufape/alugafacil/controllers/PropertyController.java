@@ -28,7 +28,6 @@ import br.edu.ufape.alugafacil.dtos.property.PropertyFilterRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
 import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
-import br.edu.ufape.alugafacil.dtos.property.CombinedPropertiesResponse;
 import br.edu.ufape.alugafacil.dtos.simpleProperty.SimplePropertyRequest;
 import br.edu.ufape.alugafacil.dtos.simpleProperty.SimplePropertyResponse;
 import br.edu.ufape.alugafacil.enums.PropertyStatus;
@@ -59,16 +58,6 @@ public class PropertyController {
 				@PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
 			) {
 		Page<PropertyResponse> response = propertyService.getAllProperties(filters, pageable);
-		
-		return ResponseEntity.ok(response);
-	}
-
-	@GetMapping("/with-simple")
-	public ResponseEntity<CombinedPropertiesResponse> listAllWithSimple(
-				@ModelAttribute PropertyFilterRequest filters,
-				@PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
-			) {
-		CombinedPropertiesResponse response = propertyService.getAllPropertiesWithSimple(filters, pageable);
 		
 		return ResponseEntity.ok(response);
 	}
@@ -134,11 +123,15 @@ public class PropertyController {
 		List<PropertyResponse> response = propertyService.getRecentProperties(limit);
 		return ResponseEntity.ok(response);
 	}
-
-	@GetMapping("/agency/{userId}")
-    public ResponseEntity<List<PropertyResponse>> listByAgency(@PathVariable UUID userId) {
-        return ResponseEntity.ok(propertyService.getPropertiesByAgencyAdminId(userId));
-    }
+	
+	@GetMapping("/user/{userId}")
+	public ResponseEntity<Page<PropertyResponse>> listByUser(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) PropertyStatus status,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
+    ) {
+		return ResponseEntity.ok(propertyService.getPropertiesByUserId(userId, status, pageable));
+	}
 
 	// --- SimpleProperty Endpoints ---
 	
@@ -176,14 +169,4 @@ public class PropertyController {
 		propertyService.deleteSimpleProperty(id);
 		return ResponseEntity.noContent().build();
 	}
-	
-	@GetMapping("/user/{userId}")
-	public ResponseEntity<Page<PropertyResponse>> listByUser(
-            @PathVariable UUID userId,
-            @RequestParam(required = false) PropertyStatus status,
-            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
-    ) {
-		return ResponseEntity.ok(propertyService.getPropertiesByUserId(userId, status, pageable));
-	}
 }
-

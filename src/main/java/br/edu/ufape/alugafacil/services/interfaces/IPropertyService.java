@@ -21,7 +21,6 @@ public interface IPropertyService {
 	PropertyResponse getPropertyById(UUID id);
 	Page<PropertyResponse> getAllProperties(PropertyFilterRequest filters, Pageable pageable);
 	Page<PropertyResponse> getPropertiesByUserId(UUID userId, PropertyStatus status, Pageable pageable);
-    CombinedPropertiesResponse getAllPropertiesWithSimple(PropertyFilterRequest filters, Pageable pageable);
 	PropertyResponse updateProperty(UUID id, PropertyRequest request);
     void deleteProperty(UUID id);
     PropertyResponse addPhotos(UUID id, List<MultipartFile> files);
@@ -29,8 +28,8 @@ public interface IPropertyService {
     void incrementViewCount(UUID propertyId);
     List<PropertyResponse> getTop10ByViewCount();
     List<PropertyResponse> getRecentProperties(int limit);
-    List<PropertyResponse> getPropertiesByAgencyAdminId(UUID adminId);
     List<SimplePropertyResponse> getAllSimpleProperties();
+    CombinedPropertiesResponse getAllPropertiesWithSimple(PropertyFilterRequest filters, Pageable pageable);
     SimplePropertyResponse createSimpleProperty(SimplePropertyRequest request, List<MultipartFile> photos);
     SimplePropertyResponse updateSimpleProperty(UUID id, SimplePropertyRequest request);
     void deleteSimpleProperty(UUID id);

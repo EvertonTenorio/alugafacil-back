@@ -61,7 +61,7 @@ class NotificationIntegrationTest {
         userRepository.save(recipient);
 
         Property property = new Property();
-        property.setUser(recipient);
+        property.setOwner(recipient);
         propertyRepository.save(property);
 
         Conversation conversation = new Conversation();

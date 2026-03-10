@@ -140,7 +140,7 @@ class PropertyServiceTest {
         );
 
         Property propertyEntity = new Property();
-        propertyEntity.setUser(owner);
+        propertyEntity.setOwner(owner);
         
         PropertyResponse responseEsperado = criarResponseFake(UUID.randomUUID());
 
@@ -148,7 +148,7 @@ class PropertyServiceTest {
         when(subscriptionRepository.findFirstByUserUserIdAndStatus(userId, PaymentStatus.ACTIVE))
             .thenReturn(Optional.of(subscription));
             
-        when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
+        when(propertyRepository.countByOwner_UserIdAndStatus(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
         when(propertyMapper.toEntity(request)).thenReturn(propertyEntity);
         when(propertyRepository.save(propertyEntity)).thenReturn(propertyEntity);
         when(propertyMapper.toResponse(propertyEntity, 0L)).thenReturn(responseEsperado);
@@ -189,7 +189,7 @@ class PropertyServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
         when(subscriptionRepository.findFirstByUserUserIdAndStatus(userId, PaymentStatus.ACTIVE))
             .thenReturn(Optional.of(subscription));
-        when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(2L);
+        when(propertyRepository.countByOwner_UserIdAndStatus(userId, PropertyStatus.ACTIVE)).thenReturn(2L);
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             propertyService.createProperty(request);
@@ -227,7 +227,7 @@ class PropertyServiceTest {
         when(subscriptionRepository.findFirstByUserUserIdAndStatus(userId, PaymentStatus.ACTIVE))
             .thenReturn(Optional.of(subscription));
         
-        when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
+        when(propertyRepository.countByOwner_UserIdAndStatus(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             propertyService.createProperty(request);
