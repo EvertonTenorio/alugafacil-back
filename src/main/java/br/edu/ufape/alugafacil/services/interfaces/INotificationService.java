@@ -26,4 +26,5 @@ public interface INotificationService {
     NotificationResponse getNotificationById(UUID id);
     NotificationResponse markAsRead(UUID id);
     void deleteNotification(UUID id);
+    void deleteAllByUserId(UUID userId);
 }
