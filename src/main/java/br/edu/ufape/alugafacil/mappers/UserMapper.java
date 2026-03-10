@@ -22,6 +22,7 @@ public interface UserMapper {
     // Quebra o loop infinito dos membros da agência e traz a contagem de imóveis
     @Mapping(target = "agency.members", ignore = true)
     @Mapping(target = "propertiesCount", expression = "java(countProperties(user))")
+    @Mapping(target = "photoUrl", expression = "java(resolvePhotoUrl(user))")
     UserResponse toResponse(User user);
     
     default Integer countProperties(User user) {
@@ -32,6 +33,16 @@ public interface UserMapper {
         }
         
         return user.getProperties() != null ? user.getProperties().size() : 0;
+    }
+    
+    default String resolvePhotoUrl(User user) {
+    	if (user == null) return null;
+    	
+    	if (user.getUserType() == UserType.AGENCY_ADMIN && user.getAgency() != null) {
+    		return user.getAgency().getPhotoUrl();
+		}
+    	
+    	return user.getPhotoUrl();
     }
 
     @Mapping(target = "userId", ignore = true)

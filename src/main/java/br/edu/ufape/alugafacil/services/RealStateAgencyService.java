@@ -1,5 +1,9 @@
 package br.edu.ufape.alugafacil.services;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.UUID;
 
@@ -8,6 +12,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import br.edu.ufape.alugafacil.controllers.UserController;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.MemberResponse;
@@ -237,6 +243,44 @@ public class RealStateAgencyService {
         return userRepository.findByAgency_AgencyId(agencyId, pageable)
                 .map(userMapper::toResponse);
     }
+    
+    @Transactional
+    public RealStateAgencyResponse uploadLogo(UUID agencyId, MultipartFile file) {
+        RealStateAgency agency = getAgencyOrThrow(agencyId);
+
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("O arquivo de imagem não pode estar vazio.");
+        }
+
+        try {
+            String uploadDir = "uploads/logos/";
+            Path uploadPath = Paths.get(uploadDir);
+
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
+            String fileExtension = "";
+            if (originalFileName.contains(".")) {
+                fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
+            }
+            String newFileName = agencyId.toString() + "_" + UUID.randomUUID().toString() + fileExtension;
+
+            Path filePath = uploadPath.resolve(newFileName);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            String fileUrl = "/uploads/logos/" + newFileName;
+            agency.setPhotoUrl(fileUrl); 
+
+            agency = realStateAgencyRepository.save(agency);
+
+            return mapper.toResponse(agency);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao fazer o upload da logomarca: " + e.getMessage(), e);
+        }
+    }
 
     // =========================================================================
     // MÉTODOS PRIVADOS AUXILIARES
@@ -262,4 +306,5 @@ public class RealStateAgencyService {
             throw new IllegalArgumentException("Usuário não autorizado para realizar esta ação na agência.");
         }
     }
+    
 }

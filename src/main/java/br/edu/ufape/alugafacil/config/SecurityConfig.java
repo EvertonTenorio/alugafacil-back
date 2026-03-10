@@ -47,6 +47,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/properties/recent").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/properties/**").permitAll() 
                 .requestMatchers(HttpMethod.POST, "/api/realStateAgencies/register").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/realStateAgencies/*/photo").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2ResourceServer ->

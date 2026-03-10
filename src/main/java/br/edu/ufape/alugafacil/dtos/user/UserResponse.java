@@ -8,6 +8,7 @@ import br.edu.ufape.alugafacil.dtos.realStateAgency.RealStateAgencyResponse;
 import br.edu.ufape.alugafacil.enums.UserStatus;
 import br.edu.ufape.alugafacil.enums.UserType;
 
+
 public record UserResponse  (
         UUID userId,
         String name,

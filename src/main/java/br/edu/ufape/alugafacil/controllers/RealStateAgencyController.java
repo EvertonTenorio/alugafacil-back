@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,12 +19,13 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import br.edu.ufape.alugafacil.dtos.realStateAgency.MemberResponse;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.RealStateAgencyRequest;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.RealStateAgencyResponse;
-import br.edu.ufape.alugafacil.dtos.realStateAgency.TransferRequest;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.TransferAllRequest; // IMPORTANTE: Adicionar este import
+import br.edu.ufape.alugafacil.dtos.realStateAgency.TransferRequest;
 import br.edu.ufape.alugafacil.dtos.user.RealtorRegistrationRequest;
 import br.edu.ufape.alugafacil.dtos.user.UserResponse;
 import br.edu.ufape.alugafacil.services.RealStateAgencyService;
@@ -168,7 +170,19 @@ public class RealStateAgencyController {
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         
         Page<UserResponse> members = realStateAgencyService.getAgencyMembers(agencyId, pageable);
-        System.out.println("members: " + members);
         return ResponseEntity.ok(members);
+    }
+    
+    @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RealStateAgencyResponse> uploadLogo(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file
+    ) {
+        try {
+            RealStateAgencyResponse response = realStateAgencyService.uploadLogo(id, file);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }
