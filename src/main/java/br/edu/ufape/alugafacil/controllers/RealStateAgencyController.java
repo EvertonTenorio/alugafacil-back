@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,7 +23,9 @@ import br.edu.ufape.alugafacil.dtos.realStateAgency.MemberResponse;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.RealStateAgencyRequest;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.RealStateAgencyResponse;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.TransferRequest;
+import br.edu.ufape.alugafacil.dtos.realStateAgency.TransferAllRequest; // IMPORTANTE: Adicionar este import
 import br.edu.ufape.alugafacil.dtos.user.RealtorRegistrationRequest;
+import br.edu.ufape.alugafacil.dtos.user.UserResponse;
 import br.edu.ufape.alugafacil.services.RealStateAgencyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -139,5 +142,33 @@ public class RealStateAgencyController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+    
+    @PostMapping("/{agencyId}/properties/transfer-all")
+    public ResponseEntity<Void> transferAllProperties(
+            @PathVariable UUID agencyId,
+            @Valid @RequestBody TransferAllRequest transferRequest,
+            @RequestHeader("X-User-Id") UUID actingUserId) {
+        try {
+            realStateAgencyService.transferAllProperties(
+                agencyId, 
+                transferRequest.fromRealtorId(), 
+                transferRequest.toRealtorId(), 
+                actingUserId
+            );
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @GetMapping("/{agencyId}/members")
+    public ResponseEntity<Page<UserResponse>> getAgencyMembers(
+            @PathVariable UUID agencyId,
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        
+        Page<UserResponse> members = realStateAgencyService.getAgencyMembers(agencyId, pageable);
+        System.out.println("members: " + members);
+        return ResponseEntity.ok(members);
     }
 }

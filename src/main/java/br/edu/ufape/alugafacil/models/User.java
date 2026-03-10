@@ -10,9 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
-
 import br.edu.ufape.alugafacil.enums.UserStatus;
-
 import br.edu.ufape.alugafacil.enums.UserType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -66,9 +64,13 @@ public class User {
     @JoinColumn(name = "agency_id")
     private RealStateAgency agency;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Property> properties;
+
+    @OneToMany(mappedBy = "assignedRealtor")
+    @JsonManagedReference
+    private List<Property> assignedProperties;
 
     @OneToMany(mappedBy = "user")
     @JsonManagedReference

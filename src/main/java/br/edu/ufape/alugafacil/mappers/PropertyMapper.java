@@ -14,21 +14,20 @@ public interface PropertyMapper {
 
     // --- Request (DTO) -> Entity ---
     
-    // ignora 'user' aqui porque vamos setar manualmente no service após buscar no banco
-    // ignora 'propertyId' pois é gerado automaticamente
-    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "agency", ignore = true)
+    @Mapping(target = "assignedRealtor", ignore = true)
     @Mapping(target = "propertyId", ignore = true)
-    // O MapStruct converte AddressRequest -> Address e GeolocationRequest -> Geolocation automaticamente
     Property toEntity(PropertyRequest request);
 
-    // --- Entity -> Response (DTO) ---
 
-    // mapeia o ID do user da entidade para o campo userId do record; viewCount passado por parâmetro
-    @Mapping(source = "property.user.userId", target = "ownerId")
+    @Mapping(source = "property.owner.userId", target = "ownerId")
     @Mapping(target = "viewCount", source = "viewCount")
     PropertyResponse toResponse(Property property, Long viewCount);
-
-    @Mapping(target = "user", ignore = true)
+    
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "agency", ignore = true)
+    @Mapping(target = "assignedRealtor", ignore = true)
     @Mapping(target = "propertyId", ignore = true)
     void updateEntityFromDto(PropertyRequest request, @MappingTarget Property entity);
 }

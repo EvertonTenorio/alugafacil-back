@@ -11,18 +11,18 @@ import br.edu.ufape.alugafacil.dtos.property.PropertyFilterRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
 import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
+import br.edu.ufape.alugafacil.enums.PropertyStatus;
 
 public interface IPropertyService {
 	PropertyResponse createProperty(PropertyRequest request);
 	PropertyResponse getPropertyById(UUID id);
 	Page<PropertyResponse> getAllProperties(PropertyFilterRequest filters, Pageable pageable);
-	List<PropertyResponse> getPropertiesByUserId(UUID userId);
-    PropertyResponse updateProperty(UUID id, PropertyRequest request);
+	Page<PropertyResponse> getPropertiesByUserId(UUID userId, PropertyStatus status, Pageable pageable);
+	PropertyResponse updateProperty(UUID id, PropertyRequest request);
     void deleteProperty(UUID id);
     PropertyResponse addPhotos(UUID id, List<MultipartFile> files);
     void updateStatus(UUID id, PropertyStatusDTO dto);
     void incrementViewCount(UUID propertyId);
     List<PropertyResponse> getTop10ByViewCount();
     List<PropertyResponse> getRecentProperties(int limit);
-    List<PropertyResponse> getPropertiesByAgencyAdminId(UUID adminId);
 }

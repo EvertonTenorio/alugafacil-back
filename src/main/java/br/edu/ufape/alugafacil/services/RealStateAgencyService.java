@@ -1,5 +1,6 @@
 package br.edu.ufape.alugafacil.services;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -7,19 +8,24 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import br.edu.ufape.alugafacil.controllers.UserController;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.MemberResponse;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.RealStateAgencyRequest;
 import br.edu.ufape.alugafacil.dtos.realStateAgency.RealStateAgencyResponse;
 import br.edu.ufape.alugafacil.dtos.user.RealtorRegistrationRequest;
+import br.edu.ufape.alugafacil.dtos.user.UserResponse;
 import br.edu.ufape.alugafacil.enums.UserType;
 import br.edu.ufape.alugafacil.mappers.RealStateAgencyMapper;
+import br.edu.ufape.alugafacil.mappers.UserMapper;
+import br.edu.ufape.alugafacil.models.Address;
 import br.edu.ufape.alugafacil.models.Property;
 import br.edu.ufape.alugafacil.models.RealStateAgency;
 import br.edu.ufape.alugafacil.models.User;
 import br.edu.ufape.alugafacil.repositories.PropertyRepository;
 import br.edu.ufape.alugafacil.repositories.RealStateAgencyRepository;
 import br.edu.ufape.alugafacil.repositories.UserRepository;
+import br.edu.ufape.alugafacil.services.interfaces.IKeycloakService;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -33,6 +39,8 @@ public class RealStateAgencyService {
     private final PropertyRepository propertyRepository;
     private final RealStateAgencyMapper mapper;
     private final PasswordEncoder passwordEncoder;
+    private final IKeycloakService keycloakService;
+    private final UserMapper userMapper;
 
 
     @Transactional(readOnly = true)
@@ -56,13 +64,28 @@ public class RealStateAgencyService {
     	adminUser.setPassword(passwordEncoder.encode(request.adminPassword()));
     	adminUser.setUserType(UserType.AGENCY_ADMIN);
     	
+    	keycloakService.createUser(
+                request.adminName(), 
+                request.adminEmail(), 
+                request.adminPassword(), 
+                UserType.AGENCY_ADMIN
+        );
     	
     	adminUser = userRepository.save(adminUser);
     	
-    	
+    	Address address = new Address();
+        address.setPostalCode(request.address().postalCode());
+        address.setStreet(request.address().street());
+        address.setNumber(request.address().number());
+        address.setComplement(request.address().complement());
+        address.setNeighborhood(request.address().neighborhood());
+        address.setCity(request.address().city());
+        address.setState(request.address().state());
+
         RealStateAgency newAgency = mapper.toEntity(request);
         
         newAgency.setUser(adminUser);
+        newAgency.setAddress(address);
         
         newAgency = realStateAgencyRepository.save(newAgency);
         
@@ -94,6 +117,13 @@ public class RealStateAgencyService {
         realtor.setPhoneNumber(request.phoneNumber());
         realtor.setPassword(passwordEncoder.encode(request.password()));
         
+        keycloakService.createUser(
+        		realtor.getName(), 
+                realtor.getEmail(), 
+                request.password(),
+                UserType.REALTOR
+        );
+    	
         realtor.setUserType(UserType.REALTOR); 
         realtor.setAgency(targetAgency);
 
@@ -150,6 +180,8 @@ public class RealStateAgencyService {
             throw new IllegalArgumentException("Não é possível remover o proprietário da agência.");
         }
 
+        propertyRepository.unassignRealtorProperties(user.getUserId());
+
         user.setAgency(null);
         userRepository.save(user);
     }
@@ -167,12 +199,43 @@ public class RealStateAgencyService {
             throw new IllegalArgumentException("O usuário destino deve ser membro desta agência.");
         }
 
-        if (property.getUser() == null || property.getUser().getAgency() == null || !agency.getAgencyId().equals(property.getUser().getAgency().getAgencyId())) {
-            throw new IllegalArgumentException("O responsável atual pelo imóvel deve pertencer à mesma agência.");
+        if (property.getAgency() == null || !agency.getAgencyId().equals(property.getAgency().getAgencyId())) {
+            throw new IllegalArgumentException("Este imóvel não pertence à sua agência.");
         }
 
-        property.setUser(targetUser);
+        property.setAssignedRealtor(targetUser);
         propertyRepository.save(property);
+    }
+    
+    @Transactional
+    public void transferAllProperties(UUID agencyId, UUID fromRealtorId, UUID toRealtorId, UUID actingUserId) {
+        RealStateAgency agency = getAgencyOrThrow(agencyId);
+        validateAgencyAdminOrSystemAdmin(agency, actingUserId);
+
+        User toRealtor = getUserOrThrow(toRealtorId);
+
+        if (toRealtor.getAgency() == null || !agency.getAgencyId().equals(toRealtor.getAgency().getAgencyId())) {
+            throw new IllegalArgumentException("O corretor destino deve ser membro desta agência.");
+        }
+
+        List<Property> propertiesToTransfer = propertyRepository.findByAssignedRealtor_UserId(fromRealtorId);
+
+        for (Property property : propertiesToTransfer) {
+            // Medida de segurança extra para garantir que o imóvel é da agência
+            if (property.getAgency() != null && property.getAgency().getAgencyId().equals(agencyId)) {
+                property.setAssignedRealtor(toRealtor);
+            }
+        }
+        
+        propertyRepository.saveAll(propertiesToTransfer);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getAgencyMembers(UUID agencyId, Pageable pageable) {
+        getAgencyOrThrow(agencyId);
+
+        return userRepository.findByAgency_AgencyId(agencyId, pageable)
+                .map(userMapper::toResponse);
     }
 
     // =========================================================================

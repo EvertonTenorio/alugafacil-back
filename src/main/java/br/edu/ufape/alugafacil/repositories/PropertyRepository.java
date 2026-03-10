@@ -3,6 +3,7 @@ package br.edu.ufape.alugafacil.repositories;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,19 +19,34 @@ import br.edu.ufape.alugafacil.models.Property;
 public interface PropertyRepository extends
 		JpaRepository<Property, UUID>,
 		QuerydslPredicateExecutor<Property> {
-	List<Property> findByUserUserId(UUID userId);
 
-	@Query("SELECT COUNT(p) FROM Property p WHERE p.user.userId = :userId AND p.status = :status")
-	long countPropertiesByUser(@Param("userId") UUID userId, @Param("status") PropertyStatus status);
+
+	long countByOwner_UserIdAndStatus(UUID ownerId, PropertyStatus status);
 
 	@Modifying
-	@Query("UPDATE Property p SET p.status = 'PAUSED' WHERE p.user.id = :userId AND p.status = 'ACTIVE'")
+	@Query("UPDATE Property p SET p.status = 'PAUSED' WHERE p.owner.userId = :userId AND p.status = 'ACTIVE'")
 	void pauseActivePropertiesByUserId(@Param("userId") UUID userId);
 
-	@Query("SELECT p FROM Property p WHERE p.user.agency.user.id = :adminId")
-    List<Property> findByAgencyAdminId(@Param("adminId") UUID adminId);
+	@Modifying
+	@Query("UPDATE Property p SET p.assignedRealtor = null WHERE p.assignedRealtor.userId = :realtorId")
+	void unassignRealtorProperties(@Param("realtorId") UUID realtorId);
 
-	
 	@Query("SELECT p FROM Property p WHERE p.status = :status ORDER BY p.createdAt DESC")
 	List<Property> findRecentProperties(@Param("status") PropertyStatus status, Pageable pageable);
+	
+	List<Property> findByAgency_AgencyId(UUID agencyId);
+	
+	Page<Property> findByAssignedRealtor_UserId(UUID realtorId, Pageable pageable);
+    
+    Page<Property> findByAgency_AgencyId(UUID agencyId, Pageable pageable);
+    
+    Page<Property> findByOwner_UserId(UUID ownerId, Pageable pageable);
+    
+    List<Property> findByAssignedRealtor_UserId(UUID realtorId);
+    
+    Page<Property> findByAssignedRealtor_UserIdAndStatus(UUID userId, PropertyStatus status, Pageable pageable);
+    
+    Page<Property> findByAgency_AgencyIdAndStatus(UUID agencyId, PropertyStatus status, Pageable pageable);
+    
+    Page<Property> findByOwner_UserIdAndStatus(UUID ownerId, PropertyStatus status, Pageable pageable);
 }

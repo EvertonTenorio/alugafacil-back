@@ -1,11 +1,10 @@
 package br.edu.ufape.alugafacil.controllers;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -28,6 +27,7 @@ import br.edu.ufape.alugafacil.dtos.property.PropertyFilterRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
 import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
+import br.edu.ufape.alugafacil.enums.PropertyStatus;
 import br.edu.ufape.alugafacil.repositories.FavoriteRepository;
 import br.edu.ufape.alugafacil.services.interfaces.IPropertyService;
 import jakarta.validation.Valid;
@@ -65,10 +65,6 @@ public class PropertyController {
 		return ResponseEntity.ok(response);
 	}
 	
-	@GetMapping("/owner/{userId}")
-	public ResponseEntity<List<PropertyResponse>> listByOwner(@PathVariable UUID userId) {
-		return ResponseEntity.ok(propertyService.getPropertiesByUserId(userId));
-	}
 	
 	@PutMapping("/{id}")
 	public ResponseEntity<PropertyResponse> update(@PathVariable UUID id,
@@ -124,10 +120,14 @@ public class PropertyController {
 		List<PropertyResponse> response = propertyService.getRecentProperties(limit);
 		return ResponseEntity.ok(response);
 	}
-
-	@GetMapping("/agency/{userId}")
-    public ResponseEntity<List<PropertyResponse>> listByAgency(@PathVariable UUID userId) {
-        return ResponseEntity.ok(propertyService.getPropertiesByAgencyAdminId(userId));
-    }
+	
+	@GetMapping("/user/{userId}")
+	public ResponseEntity<Page<PropertyResponse>> listByUser(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) PropertyStatus status,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
+    ) {
+		return ResponseEntity.ok(propertyService.getPropertiesByUserId(userId, status, pageable));
+	}
 }
 

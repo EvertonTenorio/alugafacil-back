@@ -102,7 +102,7 @@ public class Property {
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     @JsonBackReference
-    private User user;
+    private User owner;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -114,4 +114,12 @@ public class Property {
     
     @Column(name = "moderation_reason", columnDefinition = "TEXT", nullable = true)
     private String moderationReason;
+    
+    @ManyToOne
+    @JoinColumn(name = "agency_id", nullable = true)
+    private RealStateAgency agency;
+
+    @ManyToOne
+    @JoinColumn(name = "assigned_realtor_id", nullable = true)
+    private User assignedRealtor;
 }

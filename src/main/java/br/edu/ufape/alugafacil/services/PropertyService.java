@@ -24,11 +24,10 @@ import com.querydsl.core.types.dsl.NumberExpression;
 import br.edu.ufape.alugafacil.dtos.property.PropertyFilterRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
-
+import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
 import br.edu.ufape.alugafacil.enums.PaymentStatus;
 import br.edu.ufape.alugafacil.enums.PropertyStatus;
-import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
-
+import br.edu.ufape.alugafacil.enums.UserType; // IMPORTANTE: Adicionado import do UserType
 import br.edu.ufape.alugafacil.mappers.PropertyMapper;
 import br.edu.ufape.alugafacil.models.Plan;
 import br.edu.ufape.alugafacil.models.Property;
@@ -91,23 +90,30 @@ public class PropertyService implements IPropertyService {
     @Override
     @Transactional
     public PropertyResponse createProperty(PropertyRequest request) {
-        User owner = userRepository.findById(request.userId())
+        User currentUser = userRepository.findById(request.userId())
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado com ID: " + request.userId()));
         
-        // Plan plan = getUserActivePlan(owner);
-        // long currentProperties = propertyRepository.countPropertiesByUser(owner.getUserId(), PropertyStatus.ACTIVE);
-        
-        // if (currentProperties >= plan.getPropertiesCount()) {
-        //     throw new RuntimeException("Upgrade necessário! Seu plano permite apenas " + plan.getPropertiesCount() + " imóveis.");
-        // }
-        
-        // if (request.videoUrl() != null && !request.videoUrl().isEmpty() && !plan.getHasVideo()) {
-        //     throw new RuntimeException("Seu plano atual não permite adicionar vídeos ao anúncio.");
-        // }
-        
         Property property = propertyMapper.toEntity(request);
-        property.setUser(owner);
-        // property.setIsPriority(plan.getIsPriority()); 
+
+        if (currentUser.getUserType() == UserType.REALTOR) {
+            if (currentUser.getAgency() == null) {
+                throw new RuntimeException("Corretor não possui agência vinculada.");
+            }
+            property.setOwner(currentUser.getAgency().getUser()); 
+            property.setAgency(currentUser.getAgency());
+            property.setAssignedRealtor(currentUser);
+            
+        } else if (currentUser.getUserType() == UserType.AGENCY_ADMIN) {
+            property.setOwner(currentUser);
+            property.setAgency(currentUser.getAgency());
+            property.setAssignedRealtor(null);
+            
+        } else {
+            property.setOwner(currentUser);
+            property.setAgency(null);
+            property.setAssignedRealtor(null);
+        }
+
         if (request.status() != null) {
             property.setStatus(request.status());
         } else {
@@ -116,71 +122,49 @@ public class PropertyService implements IPropertyService {
         
         Property savedProperty = propertyRepository.save(property);
         
-        
-
         notifyInterestedUsers(savedProperty);
-       
-
+        
         return propertyMapper.toResponse(savedProperty, 0L);
-
     }
 
-    @Override
-    public List<PropertyResponse> getPropertiesByAgencyAdminId(UUID adminId) {
-        List<Property> properties = propertyRepository.findByAgencyAdminId(adminId);
-        List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
-        Map<UUID, Long> viewCounts = getViewCountMap(ids);
-        return properties.stream()
-                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
-                .toList();
-    }
-
-    /**
-     * Busca usuários interessados e dispara notificação.
-     * @Async garante que não trave a resposta da API.
-     */
     @Async 
-protected void notifyInterestedUsers(Property property) {
-    
-    // 1. Extração segura dos dados da entidade Property
-    Integer garageCount = (property.getGarage() != null && property.getGarage()) ? 1 : 0;
-    Double lat = (property.getGeolocation() != null) ? property.getGeolocation().getLatitude() : null;
-    Double lon = (property.getGeolocation() != null) ? property.getGeolocation().getLongitude() : null;
-    String city = (property.getAddress() != null) ? property.getAddress().getCity() : null;
-    String neighborhood = (property.getAddress() != null) ? property.getAddress().getNeighborhood() : null;
-    String state = (property.getAddress() != null) ? property.getAddress().getState() : null;
+    protected void notifyInterestedUsers(Property property) {
+        Integer garageCount = (property.getGarage() != null && property.getGarage()) ? 1 : 0;
+        Double lat = (property.getGeolocation() != null) ? property.getGeolocation().getLatitude() : null;
+        Double lon = (property.getGeolocation() != null) ? property.getGeolocation().getLongitude() : null;
+        String city = (property.getAddress() != null) ? property.getAddress().getCity() : null;
+        String neighborhood = (property.getAddress() != null) ? property.getAddress().getNeighborhood() : null;
+        String state = (property.getAddress() != null) ? property.getAddress().getState() : null;
 
-    // 2. Busca usando os dados extraídos do objeto property (e não do request)
-    List<UserSearchPreference> matches = preferenceRepository.findMatchingPreferences(
-        property.getPriceInCents(),
-        property.getNumberOfBedrooms(),
-        property.getNumberOfBathrooms(),
-        garageCount, 
-        property.getFurnished(),
-        property.getPetFriendly(),
-        city,
-        neighborhood,
-        state,
-        lat,
-        lon
-    );
-
-    // 3. Envio das notificações
-    for (UserSearchPreference preference : matches) {
-        // Evita notificar o próprio dono do imóvel
-        if (property.getUser() != null && preference.getUser().getUserId().equals(property.getUser().getUserId())) {
-            continue;
-        }
-
-        notificationService.notifyListingMatch(
-            preference.getUser().getUserId(),
-            property.getPropertyId(), 
-            preference.getName()
+        List<UserSearchPreference> matches = preferenceRepository.findMatchingPreferences(
+            property.getPriceInCents(),
+            property.getNumberOfBedrooms(),
+            property.getNumberOfBathrooms(),
+            garageCount, 
+            property.getFurnished(),
+            property.getPetFriendly(),
+            city,
+            neighborhood,
+            state,
+            lat,
+            lon
         );
+
+        for (UserSearchPreference preference : matches) {
+            if (property.getOwner() != null && preference.getUser().getUserId().equals(property.getOwner().getUserId())) {
+                continue;
+            }
+
+            notificationService.notifyListingMatch(
+                preference.getUser().getUserId(),
+                property.getPropertyId(), 
+                preference.getName()
+            );
+        }
+        
+        log.info("Notificações enviadas para {} usuários interessados.", matches.size());
     }
-    
-    log.info("Notificações enviadas para {} usuários interessados.", matches.size());
-}
+
     @Override
     public PropertyResponse getPropertyById(UUID id) {
         Property property = propertyRepository.findById(id)
@@ -202,9 +186,7 @@ protected void notifyInterestedUsers(Property property) {
                     .anyMatch(role -> role.equals("ROLE_ADMIN") || role.equals("ADMIN"));
         }
 
-
         if (filters != null) {
-            // --- Geolocalização ---
             if (filters.getLat() != null && filters.getLon() != null && filters.getRadius() != null) {
                 NumberExpression<Double> dbLat = qProperty.geolocation.latitude;
                 NumberExpression<Double> dbLon = qProperty.geolocation.longitude;
@@ -219,7 +201,6 @@ protected void notifyInterestedUsers(Property property) {
                 builder.and(distanceExpression.loe(filters.getRadius()));
             }
 
-            // --- Filtros Básicos ---
             if (filters.getMinPrice() != null) builder.and(qProperty.priceInCents.goe(filters.getMinPrice() * 100));
             if (filters.getMaxPrice() != null) builder.and(qProperty.priceInCents.loe(filters.getMaxPrice() * 100));
             if (filters.getMinRooms() != null) builder.and(qProperty.numberOfRooms.goe(filters.getMinRooms()));
@@ -235,7 +216,6 @@ protected void notifyInterestedUsers(Property property) {
                 if (!isAdmin) {
                     builder.and(qProperty.status.eq(PropertyStatus.ACTIVE));                    
                 }
-
             }
             
             if (filters.getCity() != null && !filters.getCity().isEmpty()) {
@@ -254,7 +234,6 @@ protected void notifyInterestedUsers(Property property) {
                     builder.and(qProperty.amenities.any().containsIgnoreCase(amenity));
                 }
             }
-
             
             if (filters.getHouseRules() != null && !filters.getHouseRules().isEmpty()) {
                 for (String rule : filters.getHouseRules()) {
@@ -262,7 +241,6 @@ protected void notifyInterestedUsers(Property property) {
                 }
             }
         }
-        
         
         Page<Property> pageResult = propertyRepository.findAll((Predicate) builder, pageable);
         List<Property> content = pageResult.getContent();
@@ -272,13 +250,37 @@ protected void notifyInterestedUsers(Property property) {
     }
     
     @Override
-    public List<PropertyResponse> getPropertiesByUserId(UUID userId) {
-        List<Property> properties = propertyRepository.findByUserUserId(userId);
-        List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
+    public Page<PropertyResponse> getPropertiesByUserId(UUID userId, PropertyStatus status, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        Page<Property> propertyPage;
+
+        if (user.getUserType() == UserType.REALTOR) {
+            propertyPage = (status == null) 
+                ? propertyRepository.findByAssignedRealtor_UserId(userId, pageable)
+                : propertyRepository.findByAssignedRealtor_UserIdAndStatus(userId, status, pageable);
+                
+        } else if (user.getUserType() == UserType.AGENCY_ADMIN && user.getAgency() != null) {
+            propertyPage = (status == null)
+                ? propertyRepository.findByAgency_AgencyId(user.getAgency().getAgencyId(), pageable)
+                : propertyRepository.findByAgency_AgencyIdAndStatus(user.getAgency().getAgencyId(), status, pageable);
+                
+        } else {
+            propertyPage = (status == null)
+                ? propertyRepository.findByOwner_UserId(userId, pageable)
+                : propertyRepository.findByOwner_UserIdAndStatus(userId, status, pageable);
+        }
+
+        List<UUID> ids = propertyPage.getContent().stream()
+                .map(Property::getPropertyId)
+                .toList();
+                
         Map<UUID, Long> viewCounts = getViewCountMap(ids);
-        return properties.stream()
-                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
-                .collect(Collectors.toList());
+
+        return propertyPage.map(p -> 
+                propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L))
+        );
     }
 
     @Override
@@ -297,14 +299,14 @@ protected void notifyInterestedUsers(Property property) {
             }
         }
 
-        Plan plan = getUserActivePlan(property.getUser());
+        Plan plan = getUserActivePlan(property.getOwner());
 
         if (request.videoUrl() != null && !request.videoUrl().isBlank() && !plan.getHasVideo()) {
             throw new RuntimeException("Seu plano atual não permite adicionar vídeos.");
         }
 
         if (property.getStatus() != PropertyStatus.ACTIVE && request.status() == PropertyStatus.ACTIVE) {
-            long currentActive = propertyRepository.countPropertiesByUser(property.getUser().getUserId(), PropertyStatus.ACTIVE);
+            long currentActive = propertyRepository.countByOwner_UserIdAndStatus(property.getOwner().getUserId(), PropertyStatus.ACTIVE);
             
             if (currentActive >= plan.getPropertiesCount()) {
                 throw new RuntimeException("Limite de imóveis ativos atingido (" + plan.getPropertiesCount() + ").");
@@ -321,7 +323,6 @@ protected void notifyInterestedUsers(Property property) {
     @Override
     @Transactional
     public void deleteProperty(UUID id) {
-
         Property property = propertyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Imóvel não encontrado"));
 
@@ -339,7 +340,7 @@ protected void notifyInterestedUsers(Property property) {
         Property property = propertyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Imóvel não encontrado"));
         
-        Plan plan = getUserActivePlan(property.getUser());
+        Plan plan = getUserActivePlan(property.getOwner());
         
         if (property.getPhotoUrls() == null) {
             property.setPhotoUrls(new ArrayList<>());
@@ -362,22 +363,22 @@ protected void notifyInterestedUsers(Property property) {
         return propertyMapper.toResponse(saved, getViewCount(saved.getPropertyId()));
     }
 
-	@Override
-	@Transactional
-	public void updateStatus(UUID id, PropertyStatusDTO dto) {
-	    Property property = propertyRepository.findById(id)
-	        .orElseThrow(() -> new RuntimeException("Imóvel não encontrado"));
-	    
-	    property.setStatus(dto.status());
-	    
-	    if (dto.status() == PropertyStatus.REJECTED) {
-	        property.setModerationReason(dto.reason());
-	    } else if (dto.status() == PropertyStatus.ACTIVE) {
-	        property.setModerationReason(null); 
-	    }
-	    
-	    propertyRepository.save(property);
-	}
+    @Override
+    @Transactional
+    public void updateStatus(UUID id, PropertyStatusDTO dto) {
+        Property property = propertyRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Imóvel não encontrado"));
+        
+        property.setStatus(dto.status());
+        
+        if (dto.status() == PropertyStatus.REJECTED) {
+            property.setModerationReason(dto.reason());
+        } else if (dto.status() == PropertyStatus.ACTIVE) {
+            property.setModerationReason(null); 
+        }
+        
+        propertyRepository.save(property);
+    }
 
     @Override
     @Transactional
@@ -402,34 +403,34 @@ protected void notifyInterestedUsers(Property property) {
         propertyViewRepository.save(view);
     }
 
-	@Override
-	public List<PropertyResponse> getTop10ByViewCount() {
-		List<Object[]> topIdsAndCounts = propertyViewRepository.findTopPropertyIdsByViewCount(
-				PropertyStatus.ACTIVE, PageRequest.of(0, 10));
-		if (topIdsAndCounts.isEmpty()) {
-			return List.of();
-		}
-		List<UUID> ids = topIdsAndCounts.stream()
-				.map(row -> (UUID) row[0])
-				.toList();
-		List<Property> properties = propertyRepository.findAllById(ids);
-		Map<UUID, Long> viewCounts = topIdsAndCounts.stream()
-				.collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
-		return ids.stream()
-				.map(id -> properties.stream().filter(p -> p.getPropertyId().equals(id)).findFirst().orElse(null))
-				.filter(p -> p != null)
-				.map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
-				.collect(Collectors.toList());
-	}
+    @Override
+    public List<PropertyResponse> getTop10ByViewCount() {
+        List<Object[]> topIdsAndCounts = propertyViewRepository.findTopPropertyIdsByViewCount(
+                PropertyStatus.ACTIVE, PageRequest.of(0, 10));
+        if (topIdsAndCounts.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = topIdsAndCounts.stream()
+                .map(row -> (UUID) row[0])
+                .toList();
+        List<Property> properties = propertyRepository.findAllById(ids);
+        Map<UUID, Long> viewCounts = topIdsAndCounts.stream()
+                .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+        return ids.stream()
+                .map(id -> properties.stream().filter(p -> p.getPropertyId().equals(id)).findFirst().orElse(null))
+                .filter(p -> p != null)
+                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public List<PropertyResponse> getRecentProperties(int limit) {
-		Pageable pageable = PageRequest.of(0, limit);
-		List<Property> properties = propertyRepository.findRecentProperties(PropertyStatus.ACTIVE, pageable);
-		List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
-		Map<UUID, Long> viewCounts = getViewCountMap(ids);
-		return properties.stream()
-				.map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
-				.collect(Collectors.toList());
-	}
+    @Override
+    public List<PropertyResponse> getRecentProperties(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Property> properties = propertyRepository.findRecentProperties(PropertyStatus.ACTIVE, pageable);
+        List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
+        Map<UUID, Long> viewCounts = getViewCountMap(ids);
+        return properties.stream()
+                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
+                .collect(Collectors.toList());
+    }
 }

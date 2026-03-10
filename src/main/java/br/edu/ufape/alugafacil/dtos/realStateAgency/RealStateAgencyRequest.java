@@ -1,12 +1,15 @@
 package br.edu.ufape.alugafacil.dtos.realStateAgency;
 
+import br.edu.ufape.alugafacil.dtos.address.AddressRequest;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record RealStateAgencyRequest (
     @NotBlank(message = "O nome fantasia da imobiliária é obrigatório") 
-    String agencyName,
+    String name,
     
     @NotBlank(message = "A Razão Social é obrigatória") 
     String corporateName,
@@ -16,10 +19,10 @@ public record RealStateAgencyRequest (
     
     @NotBlank(message = "O e-mail de contato da empresa é obrigatório")
     @Email(message = "E-mail da empresa inválido")
-    String agencyEmail,
+    String email,
     
     @NotBlank(message = "O telefone da empresa é obrigatório")
-    String agencyPhone,
+    String phoneNumber,
 
     String website,
     String photoUrl,
@@ -33,6 +36,10 @@ public record RealStateAgencyRequest (
     
     @NotBlank(message = "A senha é obrigatória")
     @Size(min = 4, message = "A senha deve ter no mínimo 6 caracteres")
-    String adminPassword
+    String adminPassword,
+    
+    @NotNull(message = "O endereço é obrigatório")
+    @Valid 
+    AddressRequest address
 ) {}
 

@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import br.edu.ufape.alugafacil.enums.AgencyStatus;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -60,4 +61,7 @@ public class RealStateAgency {
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private AgencyStatus status = AgencyStatus.ACTIVE;
+
+    @Embedded
+    private Address address;
 }
