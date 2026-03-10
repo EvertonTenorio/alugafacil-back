@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import br.edu.ufape.alugafacil.dtos.property.CombinedPropertiesResponse;
 import br.edu.ufape.alugafacil.dtos.property.PropertyFilterRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyRequest;
 import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
@@ -134,6 +135,16 @@ public class PropertyController {
 	}
 
 	// --- SimpleProperty Endpoints ---
+
+	@GetMapping("/with-simple")
+	public ResponseEntity<CombinedPropertiesResponse> listAllWithSimple(
+				@ModelAttribute PropertyFilterRequest filters,
+				@PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
+			) {
+		CombinedPropertiesResponse response = propertyService.getAllPropertiesWithSimple(filters, pageable);
+		
+		return ResponseEntity.ok(response);
+	}
 	
 	@PostMapping("/simple")
 	public ResponseEntity<SimplePropertyResponse> createSimpleProperty(
