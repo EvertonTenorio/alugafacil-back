@@ -81,4 +81,10 @@ public class NotificationController {
         notificationService.deleteNotification(id);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/user/{userId}")
+    public ResponseEntity<Void> deleteAllByUser(@PathVariable UUID userId) {
+        notificationService.deleteAllByUserId(userId);
+        return ResponseEntity.noContent().build();
+    }
 }

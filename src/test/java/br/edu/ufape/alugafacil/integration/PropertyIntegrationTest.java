@@ -68,7 +68,7 @@ class PropertyIntegrationTest {
     void shouldPersistAndRetrieveProperty() {
         Property property = new Property();
         property.setTitle("Casa de Praia");
-        property.setUser(defaultUser);
+        // property.setUser(defaultUser);
         property.setStatus(PropertyStatus.ACTIVE);
         property.setPriceInCents(250000); 
         property = propertyRepository.save(property);
@@ -153,7 +153,7 @@ class PropertyIntegrationTest {
         p.setTitle(titulo);
         p.setPriceInCents(preco);
         p.setStatus(PropertyStatus.ACTIVE);
-        p.setUser(defaultUser);
+        // p.setUser(defaultUser);
         p.setAddress(new Address());
         p.setGeolocation(new Geolocation());
         propertyRepository.save(p);
@@ -163,7 +163,7 @@ class PropertyIntegrationTest {
         Property p = new Property();
         p.setTitle(titulo);
         p.setStatus(PropertyStatus.ACTIVE);
-        p.setUser(defaultUser);
+        // p.setUser(defaultUser);
         Geolocation geo = new Geolocation();
         geo.setLatitude(lat);
         geo.setLongitude(lon);
@@ -178,7 +178,7 @@ class PropertyIntegrationTest {
         p.setStatus(PropertyStatus.ACTIVE);
         p.setPetFriendly(pet);
         p.setFurnished(furnished);
-        p.setUser(defaultUser);
+        // p.setUser(defaultUser);
         p.setAddress(new Address());
         p.setGeolocation(new Geolocation());
         propertyRepository.save(p);

@@ -17,13 +17,11 @@ public record PropertyResponse(
     AddressResponse address,
     GeolocationResponse geolocation,
     Integer priceInCents,
-    
     Integer weeklyRentInCents,
     Integer securityDepositInCents,
     Integer minimumLeaseMonths,
     Integer maxOccupants,
     LocalDate availableFrom,
-    
     Integer numberOfRooms,
     Integer numberOfBedrooms,
     Integer numberOfBathrooms,
@@ -40,6 +38,7 @@ public record PropertyResponse(
     PropertyType type,
     UUID ownerId,
     LocalDateTime createdAt,
-    Long viewCount
-    
+    Long viewCount,
+    UUID agencyId,
+    UUID assignedRealtorId
 ) {}

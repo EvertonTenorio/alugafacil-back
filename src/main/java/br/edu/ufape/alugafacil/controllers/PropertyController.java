@@ -120,14 +120,15 @@ public class PropertyController {
 		List<PropertyResponse> response = propertyService.getRecentProperties(limit);
 		return ResponseEntity.ok(response);
 	}
+
+    @GetMapping("/agency/{userId}")
+    public ResponseEntity<List<PropertyResponse>> listByAgency(@PathVariable UUID userId) {
+        return ResponseEntity.ok(propertyService.getPropertiesByAgencyId(userId));
+    }
 	
-	@GetMapping("/user/{userId}")
-	public ResponseEntity<Page<PropertyResponse>> listByUser(
-            @PathVariable UUID userId,
-            @RequestParam(required = false) PropertyStatus status,
-            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC, page = 0, size = 10) Pageable pageable
-    ) {
-		return ResponseEntity.ok(propertyService.getPropertiesByUserId(userId, status, pageable));
+	@GetMapping("/owner/{userId}")
+	public ResponseEntity<List<PropertyResponse>> listByOwner(@PathVariable UUID userId) {
+		return ResponseEntity.ok(propertyService.getPropertiesByUserId(userId));
 	}
 }
 
