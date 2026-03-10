@@ -133,14 +133,36 @@ class PropertyServiceTest {
 
         
         PropertyRequest request = new PropertyRequest(
-            "Casa Nova", "Descrição Top", null, null, 100000, 
-            null, null, null, null, null, // weeklyRentInCents, securityDepositInCents, minimumLeaseMonths, maxOccupants, availableFrom
-            2, 1, 1, true, true, true, true, 
-            "http://video.com", "879999999", null, null, null, PropertyStatus.ACTIVE, PropertyType.HOUSE, userId          
+            "Casa",             // title
+            "Desc",              // description
+            null,                // address (AddressRequest)
+            null,                // geolocation (GeolocationRequest)
+            100,                 // priceInCents
+            null,                // weeklyRentInCents
+            null,                // securityDepositInCents
+            null,                // minimumLeaseMonths
+            null,                // maxOccupants
+            null,                // availableFrom (LocalDate)
+            1,                   // numberOfRooms
+            1,                   // numberOfBedrooms
+            1,                   // numberOfBathrooms
+            false,               // furnished
+            false,               // petFriendly
+            false,               // garage
+            true,                // isOwner
+            "http://youtube.com/meuvideo", // videoUrl
+            "999",               // phoneNumber
+            null,                // photoUrls (List)
+            null,                // amenities (List)
+            null,                // houseRules (List)
+            PropertyStatus.ACTIVE, // status
+            PropertyType.HOUSE,  // type
+            userId,              // userId (UUID)
+            null                 // agencyId (UUID) -> NOVO CAMPO ADICIONADO AQUI
         );
 
         Property propertyEntity = new Property();
-        propertyEntity.setUser(owner);
+        // propertyEntity.setUser(owner);
         
         PropertyResponse responseEsperado = criarResponseFake(UUID.randomUUID());
 
@@ -148,7 +170,7 @@ class PropertyServiceTest {
         when(subscriptionRepository.findFirstByUserUserIdAndStatus(userId, PaymentStatus.ACTIVE))
             .thenReturn(Optional.of(subscription));
             
-        when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
+        // when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
         when(propertyMapper.toEntity(request)).thenReturn(propertyEntity);
         when(propertyRepository.save(propertyEntity)).thenReturn(propertyEntity);
         when(propertyMapper.toResponse(propertyEntity, 0L)).thenReturn(responseEsperado);
@@ -180,16 +202,38 @@ class PropertyServiceTest {
 
         
         PropertyRequest request = new PropertyRequest(
-            "Casa", "Desc", null, null, 100, 
-            null, null, null, null, null, 
-            1, 1, 1, false, false, false, true, 
-            null, "999", null, null, null, PropertyStatus.ACTIVE, PropertyType.HOUSE, userId
+            "Casa",             // title
+            "Desc",              // description
+            null,                // address (AddressRequest)
+            null,                // geolocation (GeolocationRequest)
+            100,                 // priceInCents
+            null,                // weeklyRentInCents
+            null,                // securityDepositInCents
+            null,                // minimumLeaseMonths
+            null,                // maxOccupants
+            null,                // availableFrom (LocalDate)
+            1,                   // numberOfRooms
+            1,                   // numberOfBedrooms
+            1,                   // numberOfBathrooms
+            false,               // furnished
+            false,               // petFriendly
+            false,               // garage
+            true,                // isOwner
+            "http://youtube.com/meuvideo", // videoUrl
+            "999",               // phoneNumber
+            null,                // photoUrls (List)
+            null,                // amenities (List)
+            null,                // houseRules (List)
+            PropertyStatus.ACTIVE, // status
+            PropertyType.HOUSE,  // type
+            userId,              // userId (UUID)
+            null                 // agencyId (UUID) -> NOVO CAMPO ADICIONADO AQUI
         );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
         when(subscriptionRepository.findFirstByUserUserIdAndStatus(userId, PaymentStatus.ACTIVE))
             .thenReturn(Optional.of(subscription));
-        when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(2L);
+        // when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(2L);
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             propertyService.createProperty(request);
@@ -217,17 +261,39 @@ class PropertyServiceTest {
 
         
         PropertyRequest request = new PropertyRequest(
-            "Casa", "Desc", null, null, 100, 
-            null, null, null, null, null, 
-            1, 1, 1, false, false, false, true, 
-            "http://youtube.com/meuvideo", "999", null, null, null, PropertyStatus.ACTIVE, PropertyType.HOUSE, userId
+            "Casa",             // title
+            "Desc",              // description
+            null,                // address (AddressRequest)
+            null,                // geolocation (GeolocationRequest)
+            100,                 // priceInCents
+            null,                // weeklyRentInCents
+            null,                // securityDepositInCents
+            null,                // minimumLeaseMonths
+            null,                // maxOccupants
+            null,                // availableFrom (LocalDate)
+            1,                   // numberOfRooms
+            1,                   // numberOfBedrooms
+            1,                   // numberOfBathrooms
+            false,               // furnished
+            false,               // petFriendly
+            false,               // garage
+            true,                // isOwner
+            "http://youtube.com/meuvideo", // videoUrl
+            "999",               // phoneNumber
+            null,                // photoUrls (List)
+            null,                // amenities (List)
+            null,                // houseRules (List)
+            PropertyStatus.ACTIVE, // status
+            PropertyType.HOUSE,  // type
+            userId,              // userId (UUID)
+            null                 // agencyId (UUID) -> NOVO CAMPO ADICIONADO AQUI
         );
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
         when(subscriptionRepository.findFirstByUserUserIdAndStatus(userId, PaymentStatus.ACTIVE))
             .thenReturn(Optional.of(subscription));
         
-        when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
+        // when(propertyRepository.countPropertiesByUser(userId, PropertyStatus.ACTIVE)).thenReturn(0L);
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             propertyService.createProperty(request);

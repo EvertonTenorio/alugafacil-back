@@ -69,6 +69,12 @@ public class NotificationService implements INotificationService {
 
     @Override
     @Transactional
+    public void deleteAllByUserId(UUID userId) {
+        notificationRepository.deleteAllByUserId(userId);
+    }
+
+    @Override
+    @Transactional
     public MessageNotificationResponse createMessageNotification(MessageNotificationRequest request) {
         // 2. VALIDAÇÃO: Verifica se a conversa existe (se o ID foi passado)
         if (request.getConversationId() != null && !conversationRepository.existsById(request.getConversationId())) {

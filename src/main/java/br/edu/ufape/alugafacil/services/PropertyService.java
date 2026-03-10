@@ -27,17 +27,19 @@ import br.edu.ufape.alugafacil.dtos.property.PropertyResponse;
 import br.edu.ufape.alugafacil.dtos.property.PropertyStatusDTO;
 import br.edu.ufape.alugafacil.enums.PaymentStatus;
 import br.edu.ufape.alugafacil.enums.PropertyStatus;
-import br.edu.ufape.alugafacil.enums.UserType; // IMPORTANTE: Adicionado import do UserType
+import br.edu.ufape.alugafacil.enums.UserType;
 import br.edu.ufape.alugafacil.mappers.PropertyMapper;
 import br.edu.ufape.alugafacil.models.Plan;
 import br.edu.ufape.alugafacil.models.Property;
 import br.edu.ufape.alugafacil.models.PropertyView;
 import br.edu.ufape.alugafacil.models.QProperty;
+import br.edu.ufape.alugafacil.models.RealStateAgency;
 import br.edu.ufape.alugafacil.models.User;
 import br.edu.ufape.alugafacil.models.UserSearchPreference;
 import br.edu.ufape.alugafacil.repositories.PropertyRepository;
 import br.edu.ufape.alugafacil.repositories.PropertyViewRepository;
 import br.edu.ufape.alugafacil.repositories.SubscriptionRepository;
+import br.edu.ufape.alugafacil.repositories.RealStateAgencyRepository;
 import br.edu.ufape.alugafacil.repositories.UserRepository;
 import br.edu.ufape.alugafacil.repositories.UserSearchPreferenceRepository;
 import br.edu.ufape.alugafacil.services.interfaces.IFileStorageService;
@@ -60,6 +62,7 @@ public class PropertyService implements IPropertyService {
     private final UserSearchPreferenceRepository preferenceRepository;
     private final INotificationService notificationService;
     private final SubscriptionRepository subscriptionRepository;
+    private final RealStateAgencyRepository agencyRepository;
     
     private Plan getUserActivePlan(User user) {
         return subscriptionRepository.findFirstByUserUserIdAndStatus(user.getUserId(), PaymentStatus.ACTIVE)
@@ -86,6 +89,55 @@ public class PropertyService implements IPropertyService {
         return rows.stream()
                 .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
     }
+
+    @Override
+    public List<PropertyResponse> getPropertiesByUserId(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        List<Property> properties;
+
+        if (user.getUserType() == UserType.REALTOR) {
+            properties = propertyRepository.findByAssignedRealtor_UserId(userId);
+        } else {
+            properties = propertyRepository.findByOwner_UserId(userId);
+        }
+
+        List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
+        Map<UUID, Long> viewCounts = getViewCountMap(ids);
+
+        return properties.stream()
+                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PropertyResponse> getPropertiesByAgencyId(UUID adminId) {
+        log.info("DEBUG: Iniciando busca de imóveis para o Admin ID: {}", adminId);
+        
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new RuntimeException("Admin não encontrado"));
+
+        if (admin.getAgency() == null) {
+            log.error("ERRO CRÍTICO: O Admin {} não possui uma agência vinculada!", adminId);
+            return new ArrayList<>();
+        }
+
+        UUID agencyId = admin.getAgency().getAgencyId();
+        log.info("DEBUG: Agência vinculada: {} (ID: {})", admin.getAgency().getName(), agencyId);
+
+        // Busca hierárquica robusta (Cobre agency_id NULL contanto que o criador seja da agência)
+        List<Property> properties = propertyRepository.findByAgencyIdOrOwnerAgencyId(agencyId);
+        
+        log.info("DEBUG: Imóveis encontrados no banco: {}", properties.size());
+
+        List<UUID> ids = properties.stream().map(Property::getPropertyId).toList();
+        Map<UUID, Long> viewCounts = getViewCountMap(ids);
+
+        return properties.stream()
+                .map(p -> propertyMapper.toResponse(p, viewCounts.getOrDefault(p.getPropertyId(), 0L)))
+                .collect(Collectors.toList());
+    }
     
     @Override
     @Transactional
@@ -95,10 +147,12 @@ public class PropertyService implements IPropertyService {
         
         Property property = propertyMapper.toEntity(request);
 
+        // --- LÓGICA DE VÍNCULO DE AGÊNCIA ---
         if (currentUser.getUserType() == UserType.REALTOR) {
             if (currentUser.getAgency() == null) {
                 throw new RuntimeException("Corretor não possui agência vinculada.");
             }
+            // Para corretores, o dono legal costuma ser o Admin da agência ou a agência em si
             property.setOwner(currentUser.getAgency().getUser()); 
             property.setAgency(currentUser.getAgency());
             property.setAssignedRealtor(currentUser);
@@ -109,19 +163,32 @@ public class PropertyService implements IPropertyService {
             property.setAssignedRealtor(null);
             
         } else {
+            // Se for OWNER, mas o agencyId vier no request (caso raro/migração), vinculamos.
+            if (request.agencyId() != null) {
+                RealStateAgency agency = agencyRepository.findById(request.agencyId())
+                        .orElseThrow(() -> new RuntimeException("Agência informada não encontrada"));
+                property.setAgency(agency);
+            } else {
+                property.setAgency(null);
+            }
             property.setOwner(currentUser);
-            property.setAgency(null);
             property.setAssignedRealtor(null);
         }
 
-        if (request.status() != null) {
+        // Definir status inicial (REALTORS sempre começam como PENDING)
+        if (currentUser.getUserType() == UserType.REALTOR) {
+            property.setStatus(PropertyStatus.PENDING);
+        } else if (request.status() != null) {
             property.setStatus(request.status());
         } else {
             property.setStatus(PropertyStatus.ACTIVE);
         }
         
         Property savedProperty = propertyRepository.save(property);
-        
+        log.info("Imóvel criado com sucesso. ID: {}, AgencyID: {}", 
+                savedProperty.getPropertyId(), 
+                (savedProperty.getAgency() != null ? savedProperty.getAgency().getAgencyId() : "N/A"));
+
         notifyInterestedUsers(savedProperty);
         
         return propertyMapper.toResponse(savedProperty, 0L);
@@ -209,7 +276,6 @@ public class PropertyService implements IPropertyService {
             if (filters.getPetFriendly() != null) builder.and(qProperty.petFriendly.eq(filters.getPetFriendly()));
             if (filters.getType() != null) builder.and(qProperty.type.eq(filters.getType()));
             
-            // --- Status ---
             if (filters.getStatus() != null) {
                 builder.and(qProperty.status.eq(filters.getStatus()));
             } else {
@@ -224,7 +290,6 @@ public class PropertyService implements IPropertyService {
             if (filters.getNeighborhood() != null && !filters.getNeighborhood().isEmpty()) {
                 builder.and(qProperty.address.neighborhood.containsIgnoreCase(filters.getNeighborhood()));
             }
-            
             if (filters.getState() != null && !filters.getState().isEmpty()) {
                 builder.and(qProperty.address.state.containsIgnoreCase(filters.getState()));
             }
@@ -291,7 +356,6 @@ public class PropertyService implements IPropertyService {
 
         if (property.getPhotoUrls() != null && !property.getPhotoUrls().isEmpty()) {
             List<String> fotosMantidas = request.photoUrls() != null ? request.photoUrls() : new ArrayList<>();
-            
             for (String fotoAntiga : property.getPhotoUrls()) {
                 if (!fotosMantidas.contains(fotoAntiga)) {
                     fileStorageService.deleteFile(fotoAntiga);
@@ -307,15 +371,21 @@ public class PropertyService implements IPropertyService {
 
         if (property.getStatus() != PropertyStatus.ACTIVE && request.status() == PropertyStatus.ACTIVE) {
             long currentActive = propertyRepository.countByOwner_UserIdAndStatus(property.getOwner().getUserId(), PropertyStatus.ACTIVE);
-            
             if (currentActive >= plan.getPropertiesCount()) {
                 throw new RuntimeException("Limite de imóveis ativos atingido (" + plan.getPropertiesCount() + ").");
             }
         }
 
         propertyMapper.updateEntityFromDto(request, property);
-        property.setIsPriority(plan.getIsPriority());
+        
+        // Garantir que a agência não seja perdida no update
+        if (request.agencyId() != null) {
+            RealStateAgency agency = agencyRepository.findById(request.agencyId())
+                    .orElseThrow(() -> new RuntimeException("Agência não encontrada"));
+            property.setAgency(agency);
+        }
 
+        property.setIsPriority(plan.getIsPriority());
         Property saved = propertyRepository.save(property);
         return propertyMapper.toResponse(saved, getViewCount(saved.getPropertyId()));
     }
@@ -331,7 +401,6 @@ public class PropertyService implements IPropertyService {
                 fileStorageService.deleteFile(photoUrl);
             }
         }
-
         propertyRepository.delete(property);
     }
 
@@ -346,8 +415,8 @@ public class PropertyService implements IPropertyService {
             property.setPhotoUrls(new ArrayList<>());
         }
         
-        int currentCount = property.getPhotoUrls().size();
-        int newCount = files.size();
+        // int currentCount = property.getPhotoUrls().size();
+        // int newCount = files.size();
 //        int limit = plan.getImagesCount();
 //        
 //        if ((currentCount + newCount) > limit) {
@@ -388,7 +457,7 @@ public class PropertyService implements IPropertyService {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            throw new RuntimeException("Usuário não autenticado. O registro de visualização requer login.");
+            throw new RuntimeException("Usuário não autenticado.");
         }
         String email = auth.getName();
         User user = userRepository.findByEmail(email)

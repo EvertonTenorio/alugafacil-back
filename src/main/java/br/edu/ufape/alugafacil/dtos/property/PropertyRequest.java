@@ -83,5 +83,7 @@ public record PropertyRequest(
     PropertyType type,
 
     @NotNull(message = "O ID do proprietário é obrigatório")
-    UUID userId
+    UUID userId,
+
+    UUID agencyId 
 ) {}
