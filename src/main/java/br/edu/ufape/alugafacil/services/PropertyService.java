@@ -29,7 +29,7 @@ import br.edu.ufape.alugafacil.enums.PaymentStatus;
 import br.edu.ufape.alugafacil.enums.PropertyStatus;
 import br.edu.ufape.alugafacil.enums.UserType;
 import br.edu.ufape.alugafacil.mappers.PropertyMapper;
-import br.edu.ufape.alugafacil.models.Plan;
+// import br.edu.ufape.alugafacil.models.Plan;
 import br.edu.ufape.alugafacil.models.Property;
 import br.edu.ufape.alugafacil.models.PropertyView;
 import br.edu.ufape.alugafacil.models.QProperty;
@@ -64,18 +64,18 @@ public class PropertyService implements IPropertyService {
     private final SubscriptionRepository subscriptionRepository;
     private final RealStateAgencyRepository agencyRepository;
     
-    private Plan getUserActivePlan(User user) {
-        return subscriptionRepository.findFirstByUserUserIdAndStatus(user.getUserId(), PaymentStatus.ACTIVE)
-                .map(subscription -> subscription.getPlan())
-                .orElseGet(() -> {
-                    Plan freePlan = new Plan();
-                    freePlan.setPropertiesCount(1);
-                    freePlan.setImagesCount(5);
-                    freePlan.setHasVideo(false);
-                    freePlan.setIsPriority(false);
-                    return freePlan;
-                });
-    }
+    // private Plan getUserActivePlan(User user) {
+    //     return subscriptionRepository.findFirstByUserUserIdAndStatus(user.getUserId(), PaymentStatus.ACTIVE)
+    //             .map(subscription -> subscription.getPlan())
+    //             .orElseGet(() -> {
+    //                 Plan freePlan = new Plan();
+    //                 freePlan.setPropertiesCount(1);
+    //                 freePlan.setImagesCount(5);
+    //                 freePlan.setHasVideo(false);
+    //                 freePlan.setIsPriority(false);
+    //                 return freePlan;
+    //             });
+    // }
 
     private long getViewCount(UUID propertyId) {
         return propertyViewRepository.countByPropertyPropertyId(propertyId);
@@ -363,17 +363,17 @@ public class PropertyService implements IPropertyService {
             }
         }
 
-        Plan plan = getUserActivePlan(property.getOwner());
+        // Plan plan = getUserActivePlan(property.getOwner());
 
-        if (request.videoUrl() != null && !request.videoUrl().isBlank() && !plan.getHasVideo()) {
-            throw new RuntimeException("Seu plano atual não permite adicionar vídeos.");
-        }
+        // if (request.videoUrl() != null && !request.videoUrl().isBlank() && !plan.getHasVideo()) {
+        //     throw new RuntimeException("Seu plano atual não permite adicionar vídeos.");
+        // }
 
         if (property.getStatus() != PropertyStatus.ACTIVE && request.status() == PropertyStatus.ACTIVE) {
             long currentActive = propertyRepository.countByOwner_UserIdAndStatus(property.getOwner().getUserId(), PropertyStatus.ACTIVE);
-            if (currentActive >= plan.getPropertiesCount()) {
-                throw new RuntimeException("Limite de imóveis ativos atingido (" + plan.getPropertiesCount() + ").");
-            }
+            // if (currentActive >= plan.getPropertiesCount()) {
+            //     throw new RuntimeException("Limite de imóveis ativos atingido (" + plan.getPropertiesCount() + ").");
+            // }
         }
 
         propertyMapper.updateEntityFromDto(request, property);
@@ -385,7 +385,7 @@ public class PropertyService implements IPropertyService {
             property.setAgency(agency);
         }
 
-        property.setIsPriority(plan.getIsPriority());
+        // property.setIsPriority(plan.getIsPriority());
         Property saved = propertyRepository.save(property);
         return propertyMapper.toResponse(saved, getViewCount(saved.getPropertyId()));
     }
