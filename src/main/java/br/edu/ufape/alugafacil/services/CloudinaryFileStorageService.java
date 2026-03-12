@@ -36,7 +36,7 @@ public class CloudinaryFileStorageService implements IFileStorageService {
 			Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(),
 					ObjectUtils.asMap("public_id", UUID.randomUUID().toString()));
 			
-			return uploadResult.get("secure_id").toString();
+			return uploadResult.get("secure_url").toString();
 			
 		} catch (IOException e) {
 			throw new RuntimeException("Erro ao subir imagem para o Cloudinary", e);
