@@ -60,4 +60,4 @@ tmp/
 
 src/main/resources/serviceAccountKey.json
 docker-compose.yml
-uploads/
+
